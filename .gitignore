@@ -1,32 +1,39 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
+# --- Wails Specific ---
+# The actual compiled application (adjust 'db_practice_app' if your binary name is different)
+db_practice_app/build/bin/
+# Frontend build artifacts
+db_practice_app/frontend/dist/
+# Wails system-generated bindings (Optional: some keep them, but usually best to let Wails generate them on build)
+db_practice_app/frontend/wailsjs/
 
-# Test binary, built with `go test -c`
-*.test
+# --- Frontend / TypeScript ---
+# Node dependencies (The biggest source of repo bloat)
+db_practice_app/node_modules/
+db_practice_app/frontend/node_modules/
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+# Build outputs
+.parcel-cache
+.eslintcache
+# Stylelint cache (since you have it installed)
+.stylelintcache
 
-# Code coverage profiles and other test artifacts
-*.out
-coverage.*
-*.coverprofile
-profile.cov
+# --- OS / IDE Specific ---
+# macOS
+.DS_Store
+# Windows
+Thumbs.db
+# Neovim/Vim swap files
+*.swp
+*.swo
+# VS Code
+.vscode/
+# IntelliJ / GoLand
+.idea/
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
-# Go workspace file
-go.work
-go.work.sum
-
-# env file
-.env
-
-# Editor/IDE
-# .idea/
-# .vscode/
+# --- Database ---
+# If you are using a local SQLite file for testing
+*.db
+*.sqlite
