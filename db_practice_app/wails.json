@@ -1,0 +1,20 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "db_practice_app",
+  "outputfilename": "db_practice_app",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "ignored_directories": [
+    "frontend/dist",
+    "frontend/node_modules",
+    "bin",
+    "build"
+  ],
+  "rebuild_watch_patterns": ["**/*.go"],
+  "author": {
+    "name": "Roman Kysliak",
+    "email": "romakyslyak@gmail.com"
+  }
+}
