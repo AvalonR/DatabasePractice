@@ -3,90 +3,164 @@ import "./app.css";
 
 import { Auth } from "../wailsjs/go/main/App";
 import { initMap } from "./map";
+import { authStore } from "./auth";
 
-const state = {
-  isAuthenticated: false,
-  username: "",
-};
+async function handleLogin(
+  username: string,
+  password: string,
+): Promise<boolean> {
+  const resEl = document.getElementById("result");
+  if (resEl) resEl.innerText = "Authenticating...";
+
+  try {
+    const user = await Auth(username, password);
+    authStore.setUser(user);
+    return true;
+  } catch (err) {
+    if (resEl) {
+      resEl.innerText = "Invalid credentials. Please try again.";
+      resEl.style.color = "#ff4d4d";
+    }
+    return false;
+  }
+}
 
 const renderLogin = () => {
   appElement.innerHTML = `
-        <div class="auth-container">
-            <div class="result" id="result">Please enter your credentials</div>
-            <div class="input-box">
-                <input class="input" id="username" type="text" placeholder="Username" />
-                <input class="input" id="password" type="password" placeholder="Password" />
-                <button class="btn" id="loginBtn">Login</button>
+    <div class="auth-wrapper">
+        <div class="auth-card">
+            <h1>Logistics Pro</h1>
+            <p>Authorized personnel only</p>
+            
+            <div class="auth-result" id="result"></div>
+            
+            <div class="input-group">
+                <input class="auth-input" id="username" type="text" placeholder="Username" autocomplete="off" />
+                <input class="auth-input" id="password" type="password" placeholder="Password" />
             </div>
-            <div id="hint-text" class="hint"></div>
+            
+            <button class="btn-login" id="loginBtn">Initialize Session</button>
         </div>
-    `;
+    </div>
+  `;
 
-  const loginBtn = document.getElementById("loginBtn");
+  const loginBtn = document.getElementById("loginBtn") as HTMLButtonElement;
   const userIn = document.getElementById("username") as HTMLInputElement;
   const passIn = document.getElementById("password") as HTMLInputElement;
   const resEl = document.getElementById("result");
 
   userIn.focus();
 
-  loginBtn?.addEventListener("click", () => {
-    const u = userIn.value;
+  loginBtn?.addEventListener("click", async () => {
+    const u = userIn.value.trim();
     const p = passIn.value;
 
     if (!u || !p) {
-      if (resEl) resEl.innerText = "Please fill in all fields.";
+      if (resEl) resEl.innerText = "Credentials required.";
       return;
     }
 
-    Auth(u, p).then((isValid) => {
-      if (isValid) {
-        state.isAuthenticated = true;
-        state.username = u;
-        initApp();
-      } else {
-        if (resEl) resEl.innerText = "Invalid credentials.";
-      }
-    });
+    loginBtn.disabled = true;
+    loginBtn.innerText = "Authenticating...";
+
+    const success = await handleLogin(u, p);
+
+    if (success) {
+      renderDashboard();
+    } else {
+      loginBtn.disabled = false;
+      loginBtn.innerText = "Initialize Session";
+    }
+  });
+
+  passIn.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      loginBtn?.click();
+    }
   });
 };
 
 const renderDashboard = () => {
-  appElement.innerHTML = `
-        <div class="dashboard-layout">
-            <nav class="sidebar">
-                <h2>Logistics Pro</h2>
-                <p>User: <strong>${state.username}</strong></p>
-                <ul>
-                    <li><button id="nav-map">🗺️ Map</button></li>
-                    <li><button id="nav-people">👥 People</button></li>
-                    <li><button id="nav-fleet">🚗 Fleet</button></li>
-                </ul>
-                <button class="btn-logout" id="logoutBtn">Logout</button>
-            </nav>
-            <main class="content-area" id="main-content">
-                <h1>Command Center</h1>
-                <div id="view-container">Select a module to begin.</div>
-            </main>
-        </div>
-    `;
+  const user = authStore.getUser()!;
+  const canSeePeople =
+    user.role_name === "Admin" || user.role_name === "Dispatcher";
+  const canSeeFleet = user.role_name !== "Customer";
 
-  document.getElementById("logoutBtn")?.addEventListener("click", () => {
-    location.reload();
-  });
+  appElement.innerHTML = `
+    <div class="dashboard-layout">
+        <nav class="sidebar">
+            <h2>Logistics Pro</h2>
+            <div class="user-badge">
+                <p>${user.username}</p>
+                <span class="role-tag">${user.role_name}</span>
+            </div>
+            <ul class="nav-list">
+                <li><button class="nav-btn active" id="nav-map">🗺️ Infrastructure Map</button></li>
+                ${canSeePeople ? `<li><button class="nav-btn" id="nav-people">👥 People & Staff</button></li>` : ""}
+                ${canSeeFleet ? `<li><button class="nav-btn" id="nav-fleet">🚗 Fleet Status</button></li>` : ""}
+            </ul>
+            <button class="btn-logout" id="logoutBtn">Logout</button>
+        </nav>
+        <main class="content-area">
+            <div class="header-bar">
+                <h1 id="view-title">Command Center</h1>
+            </div>
+            <div class="card" id="view-container">
+                <p>Select a module from the sidebar to begin.</p>
+            </div>
+        </main>
+    </div>
+  `;
+
+  const setActiveNav = (targetId: string) => {
+    document
+      .querySelectorAll(".nav-btn")
+      .forEach((btn) => btn.classList.remove("active"));
+    document.getElementById(targetId)?.classList.add("active");
+  };
+
+  document
+    .getElementById("logoutBtn")
+    ?.addEventListener("click", () => location.reload());
 
   document.getElementById("nav-map")?.addEventListener("click", () => {
-    const mainContent = document.getElementById("view-container");
-    if (mainContent) {
-      mainContent.innerHTML = `<h2>Infrastructure Map</h2><div id="map-target"></div>`;
-      initMap("map-target"); // Kick off the canvas drawing
-    }
+    setActiveNav("nav-map");
+    updateView(
+      "Infrastructure Map",
+      `<div id="map-target" style="width:100%; height:600px;"></div>`,
+    );
+    initMap("map-target");
   });
+
+  document.getElementById("nav-people")?.addEventListener("click", () => {
+    setActiveNav("nav-people");
+    updateView(
+      "People Management",
+      `<p>Loading staff and customer records...</p>`,
+    );
+  });
+
+  document.getElementById("nav-fleet")?.addEventListener("click", () => {
+    setActiveNav("nav-fleet");
+    updateView(
+      "Fleet Overview",
+      `<p>Active vehicles and maintenance logs.</p>`,
+    );
+  });
+};
+
+const updateView = (title: string, html: string) => {
+  const titleEl = document.getElementById("view-title");
+  const container = document.getElementById("view-container");
+
+  if (titleEl) titleEl.innerText = title;
+  if (container) container.innerHTML = html;
 };
 
 const appElement = document.querySelector("#app")!;
 
 const initApp = () => {
-  if (!state.isAuthenticated) {
+  if (!authStore.getUser()) {
     renderLogin();
   } else {
     renderDashboard();
