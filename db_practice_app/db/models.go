@@ -8,10 +8,11 @@ import (
 // --- Map & Infrastructure ---
 
 type Node struct {
-	ID     int     `json:"id"`
-	XCoord float64 `json:"x_coord"`
-	YCoord float64 `json:"y_coord"`
-	Label  string  `json:"label"`
+	ID          int     `json:"id"`
+	XCoord      float64 `json:"x_coord"`
+	YCoord      float64 `json:"y_coord"`
+	Label       string  `json:"label"`
+	MapRegionID *int    `json:"map_region_id,omitempty"`
 }
 
 type Edge struct {
@@ -20,6 +21,7 @@ type Edge struct {
 	NodeBId       int     `json:"node_b_id"`
 	DistanceUnits float64 `json:"distance_units"`
 	SpeedLimit    int     `json:"speed_limit"`
+	MapRegionID   *int    `json:"map_region_id,omitempty"`
 }
 
 type MapRegion struct {
@@ -72,6 +74,7 @@ type VehicleType struct {
 	TypeName    string  `json:"type_name"`
 	FuelRate    float64 `json:"fuel_rate"`
 	MaxCapacity float64 `json:"max_capacity"`
+	PricePerKg  float64 `json:"price_per_kg"`
 }
 
 type Vehicle struct {
@@ -87,6 +90,7 @@ type Route struct {
 	DriverID      int       `json:"driver_id"`
 	PlannedDate   time.Time `json:"planned_date"`
 	TotalDistance float64   `json:"total_distance"`
+	Status        string    `json:"status"`
 }
 
 type RouteSegment struct {

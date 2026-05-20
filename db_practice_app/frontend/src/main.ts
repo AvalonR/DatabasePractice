@@ -3,6 +3,10 @@ import "./app.css";
 
 import { Auth } from "../wailsjs/go/main/App";
 import { initMap } from "./map";
+import { initFleet } from "./fleet";
+import { renderUsersView } from "./users";
+import { renderOrdersView } from "./orders";
+import { renderAuditView } from "./audit";
 import { authStore } from "./auth";
 
 async function handleLogin(
@@ -82,9 +86,11 @@ const renderLogin = () => {
 
 const renderDashboard = () => {
   const user = authStore.getUser()!;
-  const canSeePeople =
-    user.role_name === "Admin" || user.role_name === "Dispatcher";
-  const canSeeFleet = user.role_name !== "Customer";
+  const isAdmin = user.role_name === "Admin";
+  const isManager = user.role_name === "Manager";
+  const canSeeFleet = isAdmin || isManager;
+  const canSeeUsers = isAdmin;
+  const canSeeAudit = isAdmin;
 
   appElement.innerHTML = `
     <div class="dashboard-layout">
@@ -96,8 +102,10 @@ const renderDashboard = () => {
             </div>
             <ul class="nav-list">
                 <li><button class="nav-btn active" id="nav-map">🗺️ Infrastructure Map</button></li>
-                ${canSeePeople ? `<li><button class="nav-btn" id="nav-people">👥 People & Staff</button></li>` : ""}
+                <li><button class="nav-btn" id="nav-orders">📦 Orders</button></li>
                 ${canSeeFleet ? `<li><button class="nav-btn" id="nav-fleet">🚗 Fleet Status</button></li>` : ""}
+                ${canSeeUsers ? `<li><button class="nav-btn" id="nav-users">👤 User Admin</button></li>` : ""}
+                ${canSeeAudit ? `<li><button class="nav-btn" id="nav-audit">📋 Audit Logs</button></li>` : ""}
             </ul>
             <button class="btn-logout" id="logoutBtn">Logout</button>
         </nav>
@@ -132,20 +140,31 @@ const renderDashboard = () => {
     initMap("map-target");
   });
 
-  document.getElementById("nav-people")?.addEventListener("click", () => {
-    setActiveNav("nav-people");
-    updateView(
-      "People Management",
-      `<p>Loading staff and customer records...</p>`,
-    );
+  // Auto-open the map
+  document.getElementById("nav-map")?.click();
+
+  document.getElementById("nav-orders")?.addEventListener("click", () => {
+    setActiveNav("nav-orders");
+    updateView("Order Management", `<div id="view-container-inner"></div>`);
+    renderOrdersView();
   });
 
   document.getElementById("nav-fleet")?.addEventListener("click", () => {
     setActiveNav("nav-fleet");
-    updateView(
-      "Fleet Overview",
-      `<p>Active vehicles and maintenance logs.</p>`,
-    );
+    updateView("Fleet Overview", `<div id="view-container-inner"></div>`);
+    initFleet();
+  });
+
+  document.getElementById("nav-users")?.addEventListener("click", () => {
+    setActiveNav("nav-users");
+    updateView("User Management", `<div id="view-container-inner"></div>`);
+    renderUsersView();
+  });
+
+  document.getElementById("nav-audit")?.addEventListener("click", () => {
+    setActiveNav("nav-audit");
+    updateView("Audit Logs", `<div id="view-container-inner"></div>`);
+    renderAuditView();
   });
 };
 

@@ -1,187 +1,48 @@
-CREATE DATABASE IF NOT EXISTS delivery_system;
+-- Migration: price_per_kg column + audit triggers
+-- Safe to re-run: uses IF NOT EXISTS / DROP TRIGGER IF EXISTS throughout.
+
 USE delivery_system;
 
--- 1. Map_Regions (Categorization for nodes and edges)
-CREATE TABLE map_regions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    region_name VARCHAR(100),
-    risk_level ENUM('Low', 'Medium', 'High')
-);
+-- ============================================================
+-- 1. Add price_per_kg column to vehicle_types
+-- ============================================================
+SET @exists := (SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = 'delivery_system'
+      AND TABLE_NAME = 'vehicle_types'
+      AND COLUMN_NAME = 'price_per_kg');
 
--- 2. Nodes (Coordinate points for the imaginary map)
-CREATE TABLE nodes (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    x_coord DECIMAL(10, 2) NOT NULL,
-    y_coord DECIMAL(10, 2) NOT NULL,
-    label VARCHAR(100),
-    map_region_id INT,
-    FOREIGN KEY (map_region_id) REFERENCES map_regions(id)
-);
+SET @sql := IF(@exists = 0,
+    'ALTER TABLE vehicle_types
+        ADD COLUMN price_per_kg DECIMAL(10,4) NOT NULL DEFAULT 10.0000
+        AFTER max_weight_capacity',
+    'SELECT ''price_per_kg already exists'' AS status');
 
--- 3. Edges (The 'Roads' connecting nodes)
-CREATE TABLE edges (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    node_a_id INT,
-    node_b_id INT,
-    distance_units DECIMAL(10, 2),
-    speed_limit INT DEFAULT 50,
-    map_region_id INT,
-    FOREIGN KEY (node_a_id) REFERENCES nodes(id),
-    FOREIGN KEY (node_b_id) REFERENCES nodes(id),
-    FOREIGN KEY (map_region_id) REFERENCES map_regions(id)
-);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
--- 4. Locations (Specific hubs or client sites linked to nodes)
-CREATE TABLE locations (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    node_id INT,
-    name VARCHAR(150) NOT NULL,
-    address_text VARCHAR(255),
-    FOREIGN KEY (node_id) REFERENCES nodes(id)
-);
+-- ============================================================
+-- 2. Update existing vehicle types with sensible price_per_kg
+--    (only if they still have the default 10.0000)
+-- ============================================================
+UPDATE vehicle_types
+SET price_per_kg = 8.5000
+WHERE type_name = 'Light Electric Van'
+  AND price_per_kg = 10.0000;
 
--- 5. Customers (Standardized for professional addressing)
-CREATE TABLE customers (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    first_name VARCHAR(50) NOT NULL,
-    last_name VARCHAR(50) NOT NULL,
-    email VARCHAR(100) UNIQUE,
-    phone VARCHAR(20)
-);
+UPDATE vehicle_types
+SET price_per_kg = 12.0000
+WHERE type_name = 'Heavy Diesel Truck'
+  AND price_per_kg = 10.0000;
 
--- 6. Staff (Generic employees: Drivers, Managers, Officials)
-CREATE TABLE staff (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    first_name VARCHAR(50) NOT NULL,
-    last_name VARCHAR(50) NOT NULL,
-    position VARCHAR(100), -- e.g., 'Driver', 'Regional Manager'
-    hire_date DATE
-);
-
--- 7. Permissions (Security keys)
-CREATE TABLE permissions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    perm_key VARCHAR(50) UNIQUE NOT NULL -- e.g., 'manage_nodes', 'manage_users'
-);
-
--- 8. Roles
-CREATE TABLE roles (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    role_name VARCHAR(50) UNIQUE NOT NULL
-);
-
--- 9. Role_Permissions (Security bridge)
-CREATE TABLE role_permissions (
-    role_id INT,
-    permission_id INT,
-    PRIMARY KEY (role_id, permission_id),
-    FOREIGN KEY (role_id) REFERENCES roles(id),
-    FOREIGN KEY (permission_id) REFERENCES permissions(id)
-);
-
--- 10. Users (The login table - can link to either Staff or Customers)
-CREATE TABLE users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    role_id INT,
-    staff_id INT NULL, -- For employees
-    customer_id INT NULL, -- For customers accessing their portal
-    FOREIGN KEY (role_id) REFERENCES roles(id),
-    FOREIGN KEY (staff_id) REFERENCES staff(id),
-    FOREIGN KEY (customer_id) REFERENCES customers(id)
-);
-
--- 11. Vehicle_Types
-CREATE TABLE vehicle_types (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    type_name VARCHAR(50),
-    fuel_rate DECIMAL(5, 2), -- Fuel units per distance unit
-    max_weight_capacity DECIMAL(10, 2),
-    price_per_kg DECIMAL(10, 4) NOT NULL DEFAULT 10.0000 -- Revenue rate per kg
-);
-
--- 12. Vehicles (Includes 'Retired' status)
-CREATE TABLE vehicles (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    type_id INT,
-    license_plate VARCHAR(20) UNIQUE,
-    current_status ENUM('Available', 'On Route', 'Maintenance', 'Retired'),
-    FOREIGN KEY (type_id) REFERENCES vehicle_types(id)
-);
-
--- 13. Orders (The request for delivery)
-CREATE TABLE orders (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    customer_id INT,
-    pickup_node_id INT,
-    dropoff_node_id INT,
-    order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    total_weight DECIMAL(10, 2),
-    status ENUM('Draft', 'Pending', 'In Transit', 'Delivered', 'Failed', 'Cancelled', 'Returned') DEFAULT 'Draft',
-    FOREIGN KEY (customer_id) REFERENCES customers(id),
-    FOREIGN KEY (pickup_node_id) REFERENCES nodes(id),
-    FOREIGN KEY (dropoff_node_id) REFERENCES nodes(id)
-);
-
--- 14. Routes (The planned journey)
-CREATE TABLE routes (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    vehicle_id INT,
-    driver_id INT, -- Links to staff.id
-    planned_date DATE,
-    total_distance DECIMAL(10, 2) DEFAULT 0,
-    status ENUM('Planned', 'Active', 'Completed', 'Cancelled') DEFAULT 'Planned',
-    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id),
-    FOREIGN KEY (driver_id) REFERENCES staff(id)
-);
-
--- 15. Route_Segments (Sequence of edges for the route)
-CREATE TABLE route_segments (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    route_id INT,
-    edge_id INT,
-    sequence_order INT,
-    FOREIGN KEY (route_id) REFERENCES routes(id),
-    FOREIGN KEY (edge_id) REFERENCES edges(id)
-);
-
--- 16. Deliveries (The status of a specific order on a route)
-CREATE TABLE deliveries (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    order_id INT,
-    route_id INT,
-    status ENUM('Pending', 'In Transit', 'Delivered', 'Failed'),
-    actual_time DATETIME,
-    FOREIGN KEY (order_id) REFERENCES orders(id),
-    FOREIGN KEY (route_id) REFERENCES routes(id)
-);
-
--- 17. Maintenance_Logs (Vehicle health history)
-CREATE TABLE maintenance_logs (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    vehicle_id INT,
-    service_date DATE,
-    description TEXT,
-    cost DECIMAL(10, 2),
-    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id)
-);
-
--- 18. System_Audit_Logs (Security tracking)
-CREATE TABLE system_audit_logs (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT,
-    action_performed VARCHAR(255),
-    action_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-);
-
+-- ============================================================
+-- 3. Replace triggers (safe to re-run)
+-- ============================================================
 DELIMITER //
 
--- Drop existing triggers if any
 DROP TRIGGER IF EXISTS after_delivery_update//
 
--- 1. Deliveries — status change
 CREATE TRIGGER after_delivery_update
 AFTER UPDATE ON deliveries
 FOR EACH ROW
@@ -192,7 +53,8 @@ BEGIN
     END IF;
 END; //
 
--- 2. Orders — insert
+DROP TRIGGER IF EXISTS after_order_insert//
+
 CREATE TRIGGER after_order_insert
 AFTER INSERT ON orders
 FOR EACH ROW
@@ -201,7 +63,8 @@ BEGIN
     VALUES (NULL, CONCAT('Order #', NEW.id, ' created — weight: ', NEW.total_weight, 'kg, status: ', NEW.status));
 END; //
 
--- 3. Orders — update (including status changes, weight changes, node changes)
+DROP TRIGGER IF EXISTS after_order_update//
+
 CREATE TRIGGER after_order_update
 AFTER UPDATE ON orders
 FOR EACH ROW
@@ -228,7 +91,8 @@ BEGIN
     END IF;
 END; //
 
--- 4. Orders — delete
+DROP TRIGGER IF EXISTS after_order_delete//
+
 CREATE TRIGGER after_order_delete
 AFTER DELETE ON orders
 FOR EACH ROW
@@ -237,7 +101,8 @@ BEGIN
     VALUES (NULL, CONCAT('Order #', OLD.id, ' deleted'));
 END; //
 
--- 5. Users — insert
+DROP TRIGGER IF EXISTS after_user_insert//
+
 CREATE TRIGGER after_user_insert
 AFTER INSERT ON users
 FOR EACH ROW
@@ -246,7 +111,8 @@ BEGIN
     VALUES (NEW.id, CONCAT('User #', NEW.id, ' (', NEW.username, ') created'));
 END; //
 
--- 6. Users — update (role, username changes)
+DROP TRIGGER IF EXISTS after_user_update//
+
 CREATE TRIGGER after_user_update
 AFTER UPDATE ON users
 FOR EACH ROW
@@ -265,7 +131,8 @@ BEGIN
     END IF;
 END; //
 
--- 7. Users — delete
+DROP TRIGGER IF EXISTS after_user_delete//
+
 CREATE TRIGGER after_user_delete
 AFTER DELETE ON users
 FOR EACH ROW
@@ -274,7 +141,8 @@ BEGIN
     VALUES (NULL, CONCAT('User #', OLD.id, ' (', OLD.username, ') deleted'));
 END; //
 
--- 8. Vehicles — insert
+DROP TRIGGER IF EXISTS after_vehicle_insert//
+
 CREATE TRIGGER after_vehicle_insert
 AFTER INSERT ON vehicles
 FOR EACH ROW
@@ -283,7 +151,8 @@ BEGIN
     VALUES (NULL, CONCAT('Vehicle #', NEW.id, ' (', NEW.license_plate, ') added — status: ', NEW.current_status));
 END; //
 
--- 9. Vehicles — status change
+DROP TRIGGER IF EXISTS after_vehicle_update//
+
 CREATE TRIGGER after_vehicle_update
 AFTER UPDATE ON vehicles
 FOR EACH ROW
@@ -294,7 +163,8 @@ BEGIN
     END IF;
 END; //
 
--- 10. Vehicles — delete
+DROP TRIGGER IF EXISTS after_vehicle_delete//
+
 CREATE TRIGGER after_vehicle_delete
 AFTER DELETE ON vehicles
 FOR EACH ROW
@@ -303,7 +173,8 @@ BEGIN
     VALUES (NULL, CONCAT('Vehicle #', OLD.id, ' (', OLD.license_plate, ') deleted'));
 END; //
 
--- 11. Nodes — insert
+DROP TRIGGER IF EXISTS after_node_insert//
+
 CREATE TRIGGER after_node_insert
 AFTER INSERT ON nodes
 FOR EACH ROW
@@ -312,7 +183,8 @@ BEGIN
     VALUES (NULL, CONCAT('Node #', NEW.id, ' (', COALESCE(NEW.label, ''), ') created at (', NEW.x_coord, ', ', NEW.y_coord, ')'));
 END; //
 
--- 12. Nodes — update
+DROP TRIGGER IF EXISTS after_node_update//
+
 CREATE TRIGGER after_node_update
 AFTER UPDATE ON nodes
 FOR EACH ROW
@@ -331,7 +203,8 @@ BEGIN
     END IF;
 END; //
 
--- 13. Nodes — delete
+DROP TRIGGER IF EXISTS after_node_delete//
+
 CREATE TRIGGER after_node_delete
 AFTER DELETE ON nodes
 FOR EACH ROW
@@ -340,7 +213,8 @@ BEGIN
     VALUES (NULL, CONCAT('Node #', OLD.id, ' (', COALESCE(OLD.label, ''), ') deleted'));
 END; //
 
--- 14. Edges — insert
+DROP TRIGGER IF EXISTS after_edge_insert//
+
 CREATE TRIGGER after_edge_insert
 AFTER INSERT ON edges
 FOR EACH ROW
@@ -349,7 +223,8 @@ BEGIN
     VALUES (NULL, CONCAT('Edge #', NEW.id, ' created — node ', NEW.node_a_id, ' ↔ ', NEW.node_b_id, ', distance: ', NEW.distance_units));
 END; //
 
--- 15. Edges — update
+DROP TRIGGER IF EXISTS after_edge_update//
+
 CREATE TRIGGER after_edge_update
 AFTER UPDATE ON edges
 FOR EACH ROW
@@ -368,7 +243,8 @@ BEGIN
     END IF;
 END; //
 
--- 16. Edges — delete
+DROP TRIGGER IF EXISTS after_edge_delete//
+
 CREATE TRIGGER after_edge_delete
 AFTER DELETE ON edges
 FOR EACH ROW
