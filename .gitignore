@@ -6,6 +6,10 @@ db_practice_app/frontend/dist/
 # Wails system-generated bindings (Optional: some keep them, but usually best to let Wails generate them on build)
 db_practice_app/frontend/wailsjs/
 
+docs/session_history.md
+.opencode
+.exe
+
 # --- Frontend / TypeScript ---
 # Node dependencies (The biggest source of repo bloat)
 db_practice_app/node_modules/
