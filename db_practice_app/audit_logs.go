@@ -16,6 +16,9 @@ type AuditLogEntry struct {
 }
 
 func (a *App) GetAuditLogs() ([]AuditLogEntry, error) {
+	if err := a.requireDB(); err != nil {
+		return nil, err
+	}
 	if !a.hasPermission("manage_users") {
 		return nil, errors.New("permission denied")
 	}

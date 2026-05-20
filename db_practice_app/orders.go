@@ -61,6 +61,9 @@ var validDeliveryStatuses = map[string]bool{
 }
 
 func (a *App) GetOrders() ([]OrderDetail, error) {
+	if err := a.requireDB(); err != nil {
+		return nil, err
+	}
 	canViewAll := a.hasPermission("view_all_orders")
 	canViewPersonal := a.hasPermission("view_personal_orders")
 	if !canViewAll && !canViewPersonal {
@@ -174,6 +177,9 @@ func (a *App) GetOrders() ([]OrderDetail, error) {
 }
 
 func (a *App) CreateOrder(payload OrderCreat) (*OrderDetail, error) {
+	if err := a.requireDB(); err != nil {
+		return nil, err
+	}
 	if !a.hasPermission("manage_orders") {
 		return nil, errors.New("permission denied")
 	}
@@ -237,6 +243,9 @@ func (a *App) CreateOrder(payload OrderCreat) (*OrderDetail, error) {
 }
 
 func (a *App) UpdateOrder(payload OrderUpdate) error {
+	if err := a.requireDB(); err != nil {
+		return err
+	}
 	if !a.hasPermission("manage_orders") {
 		return errors.New("permission denied")
 	}
@@ -265,6 +274,9 @@ func (a *App) UpdateOrder(payload OrderUpdate) error {
 }
 
 func (a *App) UpdateOrderStatus(id int, status string) error {
+	if err := a.requireDB(); err != nil {
+		return err
+	}
 	if !a.hasPermission("update_order_status") {
 		return errors.New("permission denied")
 	}
@@ -349,6 +361,9 @@ func (a *App) cancelDelivery(deliveryID int) error {
 }
 
 func (a *App) DeleteOrder(id int) error {
+	if err := a.requireDB(); err != nil {
+		return err
+	}
 	if !a.hasPermission("manage_orders") {
 		return errors.New("permission denied")
 	}
@@ -376,6 +391,9 @@ func (a *App) DeleteOrder(id int) error {
 }
 
 func (a *App) UpdateDeliveryStatus(id int, status string) error {
+	if err := a.requireDB(); err != nil {
+		return err
+	}
 	if !a.hasPermission("update_delivery_status") {
 		return errors.New("permission denied")
 	}
@@ -426,6 +444,9 @@ func (a *App) UpdateDeliveryStatus(id int, status string) error {
 }
 
 func (a *App) DeleteDelivery(id int) error {
+	if err := a.requireDB(); err != nil {
+		return err
+	}
 	if !a.hasPermission("manage_deliveries") {
 		return errors.New("permission denied")
 	}
@@ -476,6 +497,9 @@ func (a *App) DeleteDelivery(id int) error {
 }
 
 func (a *App) GetDrivers() ([]StaffInfo, error) {
+	if err := a.requireDB(); err != nil {
+		return nil, err
+	}
 	if !a.hasPermission("manage_deliveries") {
 		return nil, errors.New("permission denied")
 	}
@@ -504,6 +528,9 @@ func (a *App) GetDrivers() ([]StaffInfo, error) {
 }
 
 func (a *App) DispatchOrder(orderID int, driverID int, vehicleID int) error {
+	if err := a.requireDB(); err != nil {
+		return err
+	}
 	if !a.hasPermission("manage_deliveries") {
 		return errors.New("permission denied")
 	}

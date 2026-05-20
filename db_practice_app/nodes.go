@@ -34,6 +34,9 @@ type NodeDetail struct {
 }
 
 func (a *App) GetNetworkData() (db.NetworkData, error) {
+	if err := a.requireDB(); err != nil {
+		return db.NetworkData{}, err
+	}
 	var networkData db.NetworkData
 
 	nodeRows, err := a.db.Query("SELECT id, x_coord, y_coord, label FROM nodes")
@@ -77,6 +80,9 @@ func (a *App) GetNetworkData() (db.NetworkData, error) {
 }
 
 func (a *App) GetNodeDetails(nodeID int) (*NodeDetail, error) {
+	if err := a.requireDB(); err != nil {
+		return nil, err
+	}
 	detail := &NodeDetail{
 		NodeID: nodeID,
 	}
@@ -214,6 +220,9 @@ func (a *App) GetNodeDetails(nodeID int) (*NodeDetail, error) {
 }
 
 func (a *App) GetNodeStats(nodeID int) (int, error) {
+	if err := a.requireDB(); err != nil {
+		return 0, err
+	}
 	var count int
 	err := a.db.QueryRow("SELECT COUNT(*) FROM orders WHERE pickup_node_id = ? OR dropoff_node_id = ?", nodeID, nodeID).Scan(&count)
 	if err != nil {
@@ -227,6 +236,9 @@ func (a *App) GetNodeStats(nodeID int) (int, error) {
 // Node CRUD
 
 func (a *App) CreateNode(xCoord float64, yCoord float64, label string) (*db.Node, error) {
+	if err := a.requireDB(); err != nil {
+		return nil, err
+	}
 	if !a.hasPermission("manage_nodes") {
 		return nil, errors.New("permission denied")
 	}
@@ -245,6 +257,9 @@ func (a *App) CreateNode(xCoord float64, yCoord float64, label string) (*db.Node
 }
 
 func (a *App) UpdateNode(id int, xCoord float64, yCoord float64, label string) error {
+	if err := a.requireDB(); err != nil {
+		return err
+	}
 	if !a.hasPermission("manage_nodes") {
 		return errors.New("permission denied")
 	}
@@ -264,6 +279,9 @@ func (a *App) UpdateNode(id int, xCoord float64, yCoord float64, label string) e
 }
 
 func (a *App) DeleteNode(id int) error {
+	if err := a.requireDB(); err != nil {
+		return err
+	}
 	if !a.hasPermission("manage_nodes") {
 		return errors.New("permission denied")
 	}
@@ -294,6 +312,9 @@ func (a *App) DeleteNode(id int) error {
 }
 
 func (a *App) CreateEdge(nodeAId int, nodeBId int, distanceUnits float64, speedLimit int) (*db.Edge, error) {
+	if err := a.requireDB(); err != nil {
+		return nil, err
+	}
 	if !a.hasPermission("manage_edges") {
 		return nil, errors.New("permission denied")
 	}
@@ -318,6 +339,9 @@ func (a *App) CreateEdge(nodeAId int, nodeBId int, distanceUnits float64, speedL
 }
 
 func (a *App) UpdateEdge(id int, nodeAId int, nodeBId int, distanceUnits float64, speedLimit int) error {
+	if err := a.requireDB(); err != nil {
+		return err
+	}
 	if !a.hasPermission("manage_edges") {
 		return errors.New("permission denied")
 	}
@@ -346,6 +370,9 @@ func (a *App) UpdateEdge(id int, nodeAId int, nodeBId int, distanceUnits float64
 }
 
 func (a *App) DeleteEdge(id int) error {
+	if err := a.requireDB(); err != nil {
+		return err
+	}
 	if !a.hasPermission("manage_edges") {
 		return errors.New("permission denied")
 	}

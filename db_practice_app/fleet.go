@@ -25,6 +25,9 @@ var validStatuses = map[string]bool{
 }
 
 func (a *App) GetAllVehicles() ([]VehicleDetail, error) {
+	if err := a.requireDB(); err != nil {
+		return nil, err
+	}
 	if !a.hasPermission("manage_vehicles") {
 		return nil, errors.New("permission denied")
 	}
@@ -53,6 +56,9 @@ func (a *App) GetAllVehicles() ([]VehicleDetail, error) {
 }
 
 func (a *App) GetVehicleTypes() ([]db.VehicleType, error) {
+	if err := a.requireDB(); err != nil {
+		return nil, err
+	}
 	rows, err := a.db.Query("SELECT id, type_name, fuel_rate, max_weight_capacity, price_per_kg FROM vehicle_types")
 	if err != nil {
 		return nil, fmt.Errorf("query vehicle types: %w", err)
@@ -71,6 +77,9 @@ func (a *App) GetVehicleTypes() ([]db.VehicleType, error) {
 }
 
 func (a *App) CreateVehicleType(name string, fuelRate float64, maxCapacity float64, pricePerKg float64) (*db.VehicleType, error) {
+	if err := a.requireDB(); err != nil {
+		return nil, err
+	}
 	if !a.hasPermission("manage_vehicle_types") {
 		return nil, errors.New("permission denied")
 	}
@@ -107,6 +116,9 @@ func (a *App) CreateVehicleType(name string, fuelRate float64, maxCapacity float
 }
 
 func (a *App) UpdateVehicleType(id int, name string, fuelRate float64, maxCapacity float64, pricePerKg float64) error {
+	if err := a.requireDB(); err != nil {
+		return err
+	}
 	if !a.hasPermission("manage_vehicle_types") {
 		return errors.New("permission denied")
 	}
@@ -141,6 +153,9 @@ func (a *App) UpdateVehicleType(id int, name string, fuelRate float64, maxCapaci
 }
 
 func (a *App) DeleteVehicleType(id int) error {
+	if err := a.requireDB(); err != nil {
+		return err
+	}
 	if !a.hasPermission("manage_vehicle_types") {
 		return errors.New("permission denied")
 	}
@@ -168,6 +183,9 @@ func (a *App) DeleteVehicleType(id int) error {
 }
 
 func (a *App) CreateVehicle(typeID int, licensePlate string, status string) (*VehicleDetail, error) {
+	if err := a.requireDB(); err != nil {
+		return nil, err
+	}
 	if !a.hasPermission("manage_vehicles") {
 		return nil, errors.New("permission denied")
 	}
@@ -215,6 +233,9 @@ func (a *App) CreateVehicle(typeID int, licensePlate string, status string) (*Ve
 }
 
 func (a *App) UpdateVehicle(id int, typeID int, licensePlate string, status string) error {
+	if err := a.requireDB(); err != nil {
+		return err
+	}
 	if !a.hasPermission("manage_vehicles") {
 		return errors.New("permission denied")
 	}
@@ -257,6 +278,9 @@ func (a *App) UpdateVehicle(id int, typeID int, licensePlate string, status stri
 }
 
 func (a *App) DeleteVehicle(id int) error {
+	if err := a.requireDB(); err != nil {
+		return err
+	}
 	if !a.hasPermission("manage_vehicles") {
 		return errors.New("permission denied")
 	}

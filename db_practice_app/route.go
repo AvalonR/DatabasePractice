@@ -139,6 +139,9 @@ func (a *App) dijkstraFastestPath(fromNodeID, toNodeID int) ([]int, float64, flo
 }
 
 func (a *App) GetDeliveryRoutePath(deliveryID int) (*DeliveryRoute, error) {
+	if err := a.requireDB(); err != nil {
+		return nil, err
+	}
 	if !a.hasPermission("view_all_orders") && !a.hasPermission("view_personal_orders") {
 		return nil, errors.New("permission denied")
 	}
@@ -204,6 +207,9 @@ func (a *App) GetDeliveryRoutePath(deliveryID int) (*DeliveryRoute, error) {
 }
 
 func (a *App) GetOrderRouteEdgeIds(orderID int) ([]int, error) {
+	if err := a.requireDB(); err != nil {
+		return nil, err
+	}
 	if !a.hasPermission("view_all_orders") && !a.hasPermission("view_personal_orders") {
 		return nil, errors.New("permission denied")
 	}

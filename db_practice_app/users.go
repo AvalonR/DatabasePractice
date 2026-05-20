@@ -55,6 +55,9 @@ type _userRow struct {
 }
 
 func (a *App) GetUsers() ([]UserDetail, error) {
+	if err := a.requireDB(); err != nil {
+		return nil, err
+	}
 	rows, err := a.db.Query(`
 		SELECT u.id, u.username, u.password_hash, u.role_id,
 		       u.staff_id, u.customer_id,
@@ -400,6 +403,9 @@ type UserUpdate struct {
 }
 
 func (a *App) CreateUser(payload UserCreat) (*UserDetail, error) {
+	if err := a.requireDB(); err != nil {
+		return nil, err
+	}
 	if !a.hasPermission("manage_users") {
 		return nil, errors.New("permission denied")
 	}
@@ -475,6 +481,9 @@ func (a *App) CreateUser(payload UserCreat) (*UserDetail, error) {
 }
 
 func (a *App) UpdateUser(payload UserUpdate) error {
+	if err := a.requireDB(); err != nil {
+		return err
+	}
 	if !a.hasPermission("manage_users") {
 		return errors.New("permission denied")
 	}
@@ -598,6 +607,9 @@ func (a *App) UpdateUser(payload UserUpdate) error {
 }
 
 func (a *App) DeleteUser(id int) error {
+	if err := a.requireDB(); err != nil {
+		return err
+	}
 	if !a.hasPermission("manage_users") {
 		return errors.New("permission denied")
 	}
@@ -650,6 +662,9 @@ func (a *App) DeleteUser(id int) error {
 }
 
 func (a *App) GetRoles() ([]db.Role, error) {
+	if err := a.requireDB(); err != nil {
+		return nil, err
+	}
 	rows, err := a.db.Query("SELECT id, role_name FROM roles ORDER BY id")
 	if err != nil {
 		return nil, fmt.Errorf("query roles: %w", err)

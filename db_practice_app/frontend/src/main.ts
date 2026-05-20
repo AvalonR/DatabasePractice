@@ -1,7 +1,7 @@
 import "./style.css";
 import "./app.css";
 
-import { Auth } from "../wailsjs/go/main/App";
+import { Auth, GetDBStatus, ReconnectDB } from "../wailsjs/go/main/App";
 import { initMap } from "./map";
 import { initFleet } from "./fleet";
 import { renderUsersView } from "./users";
@@ -28,6 +28,54 @@ async function handleLogin(
     return false;
   }
 }
+
+const renderDBSetup = (errorMsg: string) => {
+  appElement.innerHTML = `
+    <div class="auth-wrapper">
+      <div class="auth-card">
+        <h1>⚠️ Database Not Connected</h1>
+        <p style="color:#ff4d4d;font-size:0.85rem;">${errorMsg}</p>
+        <div style="text-align:left;margin:1rem 0;font-size:0.9rem;">
+          <p><strong>To set up the database:</strong></p>
+          <ol style="margin:0.5rem 0 0 1.2rem; color:#FFFFFF;">
+            <li>Ensure MySQL 8.0+ is installed and running</li>
+            <li>Run: <code style="font-size:0.8rem;">mysql -u root -p delivery_system &lt; docs/db_schema/filled_schema.sql</code></li>
+            <li>Click <strong>Retry</strong> below</li>
+          </ol>
+        </div>
+        <button class="btn-login" id="retryBtn">Retry Connection</button>
+        <p id="retry-msg" style="margin-top:0.5rem;font-size:0.8rem;"></p>
+      </div>
+    </div>
+  `;
+  document.getElementById("retryBtn")?.addEventListener("click", async () => {
+    const btn = document.getElementById("retryBtn") as HTMLButtonElement;
+    const msg = document.getElementById("retry-msg")!;
+    btn.disabled = true;
+    btn.innerText = "Connecting...";
+    msg.innerText = "";
+    try {
+      const status = await ReconnectDB();
+      if (status.connected) {
+        if (!authStore.getUser()) {
+          renderLogin();
+        } else {
+          renderDashboard();
+        }
+      } else {
+        msg.innerText = status.error || "Connection failed";
+        msg.style.color = "#ff4d4d";
+        btn.disabled = false;
+        btn.innerText = "Retry Connection";
+      }
+    } catch (e) {
+      msg.innerText = "Unexpected error";
+      msg.style.color = "#ff4d4d";
+      btn.disabled = false;
+      btn.innerText = "Retry Connection";
+    }
+  });
+};
 
 const renderLogin = () => {
   appElement.innerHTML = `
@@ -178,7 +226,18 @@ const updateView = (title: string, html: string) => {
 
 const appElement = document.querySelector("#app")!;
 
-const initApp = () => {
+const initApp = async () => {
+  try {
+    const status = await GetDBStatus();
+    if (!status.connected) {
+      renderDBSetup(status.error || "Unknown error");
+      return;
+    }
+  } catch (e) {
+    renderDBSetup("Failed to check database status");
+    return;
+  }
+
   if (!authStore.getUser()) {
     renderLogin();
   } else {

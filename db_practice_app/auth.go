@@ -18,6 +18,9 @@ type AuthenticatedUser struct {
 }
 
 func (a *App) Auth(username string, password string) (*AuthenticatedUser, error) {
+	if err := a.requireDB(); err != nil {
+		return nil, err
+	}
 	var user db.User
 
 	err := a.db.QueryRow("SELECT id, username, password_hash, role_id, staff_id, customer_id FROM users WHERE username = ?", username).Scan(&user.ID, &user.Username, &user.PasswordHash, &user.RoleID, &user.StaffID, &user.CustomerID)
